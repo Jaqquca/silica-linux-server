@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<NetworkServerSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ServerName="Silica Server" CurrentGameMode="MP_Strategy" Singleplayer="false" PasswordProtected="false" ServerPassword="" IP="0" GamePort="27015" QueryPort="27016">
+  <GameModeSettings GameMode="MP_Deathmatch" CurrentMap="BlackIsle" MapList="Badlands BlackIsle CombatDome CrimsonPeak GreatErg MonumentValley NarakaCity NorthPolarCap ProvingGrounds RiftBasin TheMaw" MaxPlayers="36" />
+  <GameModeSettings GameMode="MP_Prospector" CurrentMap="ProvingGrounds_Intro" MapList="ProspectorTest ProvingGrounds_Intro RiftBasin" MaxPlayers="4" />
+  <GameModeSettings GameMode="MP_Sandbox" CurrentMap="BlackIsle" MapList="AssetTest Badlands BlackIsle CombatDome CrimsonPeak GreatErg MainMenuNoMenu MonumentValley NarakaCity NorthPolarCap ProspectorTest ProvingGrounds ProvingGrounds_Intro RiftBasin RiftBasin_TD SiegeMap SmallStrategyTest TheMaw" MaxPlayers="12" />
+  <GameModeSettings GameMode="MP_Strategy" CurrentMap="GreatErg" MapList="Badlands BlackIsle CrimsonPeak GreatErg MonumentValley NarakaCity NorthPolarCap RiftBasin SmallStrategyTest TheMaw" MaxPlayers="12" />
+  <GameModeSettings GameMode="MP_StrategyCoop" CurrentMap="IndustrialQuarter" MapList="IndustrialQuarter Badlands BlackIsle CrimsonPeak GreatErg MonumentValley NarakaCity NorthPolarCap RiftBasin SmallStrategyTest TheMaw WhisperingPlains CrystalChasm" MaxPlayers="30" />
+  <GameModeSettings GameMode="MP_TowerDefense" CurrentMap="CrimsonPeak" MapList="CrimsonPeak RiftBasin_TD" MaxPlayers="12" />
+</NetworkServerSettings>

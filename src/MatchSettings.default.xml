@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<MatchSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <GameModes GameMode="MP_Deathmatch">
+    <Settings Param="bots" Value="8" />
+  </GameModes>
+  <GameModes GameMode="MP_Prospector" />
+  <GameModes GameMode="MP_Sandbox" />
+  <GameModes GameMode="MP_Strategy">
+    <Settings Param="diststart" Value="1" />
+    <Settings Param="resstart" Value="1" />
+    <Settings Param="resloc" Value="2" />
+    <Settings Param="capmult" Value="1" />
+    <Settings Param="techmin" Value="0" />
+    <Settings Param="techmax" Value="8" />
+  </GameModes>
+  <GameModes GameMode="MP_StrategyCoop">
+    <Settings Param="coopdifficulty" Value="2" />
+    <Settings Param="diststart" Value="1" />
+    <Settings Param="resstart" Value="1" />
+    <Settings Param="resloc" Value="2" />
+    <Settings Param="capmult" Value="1" />
+    <Settings Param="techmin" Value="0" />
+    <Settings Param="techmax" Value="8" />
+  </GameModes>
+  <GameModes GameMode="MP_TowerDefense" />
+</MatchSettings>
