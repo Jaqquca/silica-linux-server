@@ -27,6 +27,11 @@ Both use the same settings script, so a server behaves the same either way.
 | Network | Outbound internet. **No port forwarding needed:** players connect through the Steam relay network. |
 | Ports | Game port (default 27015) and query port (default 27016) on the machine itself |
 
+**Tested with v1.0.0** (Silica Steam build 26334620, November 2026):
+
+- **Standalone installer:** Ubuntu 24.04 VM with the systemd service (install, start, restart, join ID), and an `ubuntu:24.04` Docker container (no systemd)
+- **Egg:** Pterodactyl panel with Wings, image `ghcr.io/parkervcp/steamcmd:debian`
+
 ## Option A: standalone installer (any Linux machine)
 
 ```bash
