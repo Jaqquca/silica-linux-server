@@ -25,13 +25,15 @@ for name, text in [("silica-config.sh", config_sh), ("ServerSettings.default.xml
                    ("MatchSettings.default.xml", ms_default), ("GameSettings.default.xml", gs_default)]:
     assert text.endswith("\n"), name + " must end with a newline (heredoc terminator)"
 
+VERSION = "1.0.0"      # bump for every release: x.y.Z fixes, x.Y.0 new features, X.0.0 breaking changes
+RELEASED = "2026-11-03"  # date of that release (YYYY-MM-DD)
 APP_ID, GAME_APP_ID = "2738040", "1494420"
 EGG_UUID = "6f0d6f43-6a1e-4a5b-9d7c-5c1a2b0e9e54"  # fixed, so Pelican updates the egg on re-import
 
 def embed(template):
     return (template.replace("__SS_DEFAULT__", ss_default).replace("__MS_DEFAULT__", ms_default)
                     .replace("__GS_DEFAULT__", gs_default)
-                    .replace("__CONFIG_SH__", config_sh).replace("__APP_ID__", APP_ID)
+                    .replace("__CONFIG_SH__", config_sh).replace("__VERSION__", VERSION).replace("__APP_ID__", APP_ID)
                     .replace("__GAME_APP_ID__", GAME_APP_ID))
 
 ## standalone installer
@@ -154,13 +156,14 @@ variables = [
 egg = {
     "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
     "meta": {"version": "PTDL_v2", "update_url": None},
-    "exported_at": "2026-11-03T12:00:00+00:00",
+    "exported_at": RELEASED + "T00:00:00+00:00",
     "uuid": EGG_UUID,
     "name": "Silica (Linux)",
-    "author": "jakkuca1@gmail.com",
+    "author": "Jaqquca@users.noreply.github.com",
     "description": "Silica Dedicated Server (Steam app 2738040), native Linux build. Join works over the Steam relay "
                    "network (no port forwarding needed); only the query port is bound. Needs 12-16 GB RAM and ~20 GB "
-                   "disk. All game settings are optional variables: empty keeps the value in ~/Silica/*.xml.",
+                   "disk. All game settings are optional variables: empty keeps the value in ~/Silica/*.xml. "
+                   f"silica-linux-server v{VERSION} - https://github.com/Jaqquca/silica-linux-server",
     "features": None,
     "docker_images": {
         "SteamCMD Debian": "ghcr.io/parkervcp/steamcmd:debian",

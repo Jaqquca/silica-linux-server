@@ -4,11 +4,11 @@
         "version": "PTDL_v2",
         "update_url": null
     },
-    "exported_at": "2026-11-03T12:00:00+00:00",
+    "exported_at": "2026-11-03T00:00:00+00:00",
     "uuid": "6f0d6f43-6a1e-4a5b-9d7c-5c1a2b0e9e54",
     "name": "Silica (Linux)",
-    "author": "jakkuca1@gmail.com",
-    "description": "Silica Dedicated Server (Steam app 2738040), native Linux build. Join works over the Steam relay network (no port forwarding needed); only the query port is bound. Needs 12-16 GB RAM and ~20 GB disk. All game settings are optional variables: empty keeps the value in ~/Silica/*.xml.",
+    "author": "Jaqquca@users.noreply.github.com",
+    "description": "Silica Dedicated Server (Steam app 2738040), native Linux build. Join works over the Steam relay network (no port forwarding needed); only the query port is bound. Needs 12-16 GB RAM and ~20 GB disk. All game settings are optional variables: empty keeps the value in ~/Silica/*.xml. silica-linux-server v1.0.0 - https://github.com/Jaqquca/silica-linux-server",
     "features": null,
     "docker_images": {
         "SteamCMD Debian": "ghcr.io/parkervcp/steamcmd:debian",

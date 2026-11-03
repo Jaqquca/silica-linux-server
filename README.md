@@ -7,6 +7,15 @@ Run your own [Silica](https://store.steampowered.com/app/1494420/Silica/) dedica
 
 Both use the same settings script, so a server behaves the same either way.
 
+## Status
+
+**Provided as is, not maintained.** This repository is a finished snapshot, not a service. Issues and pull requests aren't monitored.
+
+- To build on it, click **Use this template**. You get your own independent repository and become the maintainer of your copy. Forking works too.
+- The MIT license asks you to keep the copyright notice, which keeps the original credit with every copy.
+- The game itself updates through SteamCMD on every server start, so you don't need a new release of this project for game updates.
+- The download links below always point to the **latest release**. A specific version is at `https://github.com/Jaqquca/silica-linux-server/releases/download/v1.0.0/<file>`.
+
 ## Requirements
 
 | | |
@@ -21,7 +30,7 @@ Both use the same settings script, so a server behaves the same either way.
 ## Option A: standalone installer (any Linux machine)
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/Jaqquca/silica-linux-server/main/install-silica-server.sh
+curl -fsSLO https://github.com/Jaqquca/silica-linux-server/releases/latest/download/install-silica-server.sh
 sudo bash install-silica-server.sh
 ```
 
@@ -61,7 +70,7 @@ Run `bash install-silica-server.sh --help` for all options.
 
 ## Option B: Pterodactyl / Pelican egg
 
-1. Download [`egg-silica-linux.json`](https://raw.githubusercontent.com/Jaqquca/silica-linux-server/main/egg-silica-linux.json). In **Admin → Nests** (Pelican: **Eggs**) **→ Import Egg**, upload it and choose a nest.
+1. Download [`egg-silica-linux.json`](https://github.com/Jaqquca/silica-linux-server/releases/latest/download/egg-silica-linux.json). In **Admin → Nests** (Pelican: **Eggs**) **→ Import Egg**, upload it and choose a nest.
    Pelican can also import it straight from that URL.
 2. Create a server from the egg:
     - **two allocations:** the game port (primary) and the query port, usually game port + 1. Set **Query Port** to the second one.
@@ -134,6 +143,31 @@ Bohemia Interactive describes 30 FPS as the lowest cap that doesn't affect playe
 | `src/build_release.py` | Builds both generated files from `src/`. |
 
 **Changing something:** edit the files in `src/`, then run `python src/build_release.py` and commit the regenerated files. Never edit the two generated files by hand.
+
+## Releasing a new version
+
+1. If the repository is archived, unarchive it (Settings → General → Danger Zone → Unarchive).
+2. Make the changes in `src/`. In `src/build_release.py`, set `VERSION` and `RELEASED`:
+    - `x.y.Z` for fixes
+    - `x.Y.0` for new features
+    - `X.0.0` when existing setups would break, for example renamed variables
+3. Build and commit:
+   ```bash
+   python src/build_release.py
+   git commit -am "v1.1.0: <what changed>"
+   git push
+   ```
+4. Publish the release with both generated files attached:
+   ```bash
+   gh release create v1.1.0 egg-silica-linux.json install-silica-server.sh --title "v1.1.0" --notes "<what changed>"
+   ```
+   The *latest release* links switch to it immediately.
+5. Archive the repository again if you want it read-only.
+
+How existing servers update:
+
+- **Standalone:** run the new installer once. It refreshes the scripts and keeps `silica.env` and the XML settings.
+- **Panel:** import the new egg (Pterodactyl: *Update Egg*; Pelican: re-import, where the fixed `uuid` makes it an update), then reinstall the server. Game files and settings stay.
 
 ## License
 

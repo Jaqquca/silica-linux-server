@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Silica Dedicated Server - standalone installer for Linux (Debian / Ubuntu, x86_64)
+# silica-linux-server v1.0.0 - https://github.com/Jaqquca/silica-linux-server
 #
 # Installs SteamCMD and the Silica dedicated server into one folder, writes the settings files and the
 # same config script the Pterodactyl/Pelican egg uses, and (as root) sets up a systemd service.
@@ -19,11 +20,13 @@
 #   --branch-password PW   password for a private branch (test)
 #   --no-service           don't create a systemd service
 #   --no-start             create the service but don't start it
+#   --version              print the version and exit
 #
 # Requirements: x86_64 Debian 11+ / Ubuntu 20.04+, ~14 GB free disk, 12-16 GB RAM, outbound internet.
 # Players join over the Steam relay network, so no port forwarding is needed.
 set -euo pipefail
 
+VERSION=1.0.0
 APP_ID=2738040          # Silica Dedicated Server (SteamCMD)
 GAME_APP_ID=1494420     # Silica, needed by Steamworks at runtime
 NEED_DISK_KB=14000000   # ~9.1 GB installed + download staging
@@ -47,7 +50,8 @@ while [ $# -gt 0 ]; do
         --branch-password) BRANCH_PASSWORD=$2; shift 2 ;;
         --no-service) SERVICE=0; shift ;;
         --no-start) START=0; shift ;;
-        -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'; exit 0 ;;
+        --version) echo "silica-linux-server v$VERSION"; exit 0 ;;
         *) die "unknown option: $1 (see --help)" ;;
     esac
 done
@@ -68,7 +72,7 @@ ram_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
 [ "$ram_kb" -ge "$NEED_RAM_KB" ] || warn "only $((ram_kb / 1024 / 1024)) GB RAM - Silica needs 12-16 GB (City of Naraka uses ~11 GB)"
 mkdir -p "$DIR" 2>/dev/null || die "cannot create $DIR (run with sudo, or pick another --dir)"
 free_kb=$(df -Pk "$DIR" | awk 'NR==2 {print $4}')
-info "Installing to $DIR ($((free_kb / 1024 / 1024)) GB free)"
+info "silica-linux-server v$VERSION - installing to $DIR ($((free_kb / 1024 / 1024)) GB free)"
 [ -f "$DIR/Silica.x86_64" ] || [ "$free_kb" -ge "$NEED_DISK_KB" ] || \
     warn "less than 14 GB free on $DIR - SteamCMD will probably fail with 'Not enough disk quota'"
 
