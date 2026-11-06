@@ -31,7 +31,7 @@ Both use the same settings script, so a server behaves the same either way. Sinc
 
 - **v1.0.0, standalone installer:** Ubuntu 24.04 VM with the systemd service (install, start, restart, join ID), and an `ubuntu:24.04` Docker container (no systemd)
 - **v1.0.0, egg:** Pterodactyl panel with Wings, image `ghcr.io/parkervcp/steamcmd:debian`
-- **v1.1.0, MelonLoader 0.7.3:** a fresh Ubuntu 24.04 VM (standalone, systemd) and Pterodactyl with the Ubuntu image, each with the data-bomb server mod pack (see the [known limitations](#known-limitations))
+- **v1.1.0, MelonLoader 0.7.3:** a fresh Ubuntu 24.04 VM (standalone, systemd) and Pterodactyl with the Ubuntu image, each with the data-bomb server mod pack (see the [known limitations](#known-limitations)), joined from a normal 1.0.15 game client with nothing installed
 
 ## Option A: standalone installer (any Linux machine)
 
@@ -161,7 +161,6 @@ Since v1.1.0, both install methods can load [MelonLoader](https://github.com/Lav
 
 ### Known limitations
 
-- **Admin Mod (data-bomb, v2.14.18) declares itself as Windows-only.** Its code says `MelonPlatform(... WINDOWS_X64)`, so MelonLoader refuses to load it on Linux (`'Admin Mod' is incompatible`). The mods that register commands with it then fail with a `NullReferenceException`. In our tests, adding `CompatiblePlatforms.LINUX` to that attribute was enough for all 26 mods of the pack to load without errors. That's a change for the mod's author. Until then, mods that don't depend on Admin Mod work.
 - **Discord Status plugin:** Windows-only (it loads a Windows library). Leave it out on Linux.
 - **Mod Updater plugin:** creates a temp folder with a Windows-style name (`Mods/~temp\`). It's harmless.
 
@@ -185,7 +184,6 @@ LD_LIBRARY_PATH=/path/to/server:/path/to/server/Silica_Data/Plugins LD_PRELOAD=M
 | High CPU with nobody online | Lower `MAX_FPS` (60 or 30) |
 | `GLIBC_2.38' not found` (MelonLoader) | The system is too old for MelonLoader: use Ubuntu 24.04+ / Debian 13+, or in the panel the Ubuntu image |
 | `DllNotFoundException: steam_api64` with MelonLoader | `Silica_Data/Plugins` is missing from `LD_LIBRARY_PATH` (manual setups; the scripts set it) |
-| `'Admin Mod v…' is incompatible` | See [Known limitations](#known-limitations) |
 | Players don't see the server | Wait for `Steam relay network and server certificate available` in the log; join by the ID from `joinid.sh` (or `Game server SteamID` in the log) |
 
 ## Repository layout
