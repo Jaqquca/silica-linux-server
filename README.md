@@ -151,17 +151,17 @@ Since v1.1.0, both install methods can load [MelonLoader](https://github.com/Lav
 
 - **Folders:** mod DLLs go into `Mods/`, plugins into `Plugins/`, and their settings into `UserData/` in the server folder (`/opt/silica` or the panel's file manager). Then restart.
 - **Log:** `MelonLoader/Latest.log`. MelonLoader's output also appears in the console (`journalctl -u silica -f` or the panel console).
-- **Example, the data-bomb dedicated-server pack** on a standalone install (it leaves out the Windows-only files):
+- **Example, the data-bomb dedicated-server pack** on a standalone install (it leaves out the Windows launchers):
   ```bash
   curl -fsSLO https://github.com/data-bomb/Silica/releases/download/v1423/DedicatedServer-v1423-29c72fa.zip
-  sudo -u silica unzip -oq DedicatedServer-v1423-29c72fa.zip -d /opt/silica -x launch.bat rungame.bat Plugins/Si_DiscordStatus.dll
+  sudo -u silica unzip -oq DedicatedServer-v1423-29c72fa.zip -d /opt/silica -x launch.bat rungame.bat
   sudo systemctl restart silica
   ```
   In the panel, upload the zip in the file manager, unpack it, and delete `launch.bat` and `rungame.bat`. For the Discord Status plugin, see [Known limitations](#known-limitations).
 
 ### Known limitations
 
-- **Discord Status plugin:** Windows-only (it loads a Windows library). Leave it out on Linux.
+- **Discord Status plugin** (`Plugins/Si_DiscordStatus.dll`): it relies on a Windows library, so on Linux it can't reach Discord and logs a few errors after the start (`EntryPointNotFoundException: LoadLibrary`, then `NullReferenceException`). The server and all other mods keep working. **To turn it off,** move the file into `Plugins/~disabled/` and restart. MelonLoader skips `~disabled` folders, the same way the pack ships its own optional mods in `Mods/~disabled/`. When a newer version of the plugin supports Linux, move it back.
 - **Mod Updater plugin:** creates a temp folder with a Windows-style name (`Mods/~temp\`). It's harmless.
 
 ### How it works (for manual setups)
