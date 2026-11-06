@@ -157,7 +157,7 @@ Since v1.1.0, both install methods can load [MelonLoader](https://github.com/Lav
   sudo -u silica unzip -oq DedicatedServer-v1423-29c72fa.zip -d /opt/silica -x launch.bat rungame.bat Plugins/Si_DiscordStatus.dll
   sudo systemctl restart silica
   ```
-  In the panel, upload the zip in the file manager, unpack it, and delete `launch.bat`, `rungame.bat` and `Plugins/Si_DiscordStatus.dll`.
+  In the panel, upload the zip in the file manager, unpack it, and delete `launch.bat` and `rungame.bat`. For the Discord Status plugin, see [Known limitations](#known-limitations).
 
 ### Known limitations
 
