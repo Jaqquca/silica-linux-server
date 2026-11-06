@@ -2,7 +2,7 @@
 
     python src/build_release.py
 
-Reads  src/silica-config.sh, src/*.default.xml, src/install-silica-server.template.sh
+Reads  src/silica-config.sh, src/silica-launch.sh, src/*.default.xml, src/install-silica-server.template.sh
 Writes egg-silica-linux.json      (PTDL_v2 - imports into Pterodactyl and Pelican)
        install-silica-server.sh   (standalone Linux installer)
 Both embed the same config script and templates, so a server behaves the same either way.
@@ -18,22 +18,27 @@ def read(name):
         return f.read().replace("\r\n", "\n")
 
 config_sh = read("silica-config.sh")
+launch_sh = read("silica-launch.sh")
 ss_default = read("ServerSettings.default.xml")
 ms_default = read("MatchSettings.default.xml")
 gs_default = read("GameSettings.default.xml")
-for name, text in [("silica-config.sh", config_sh), ("ServerSettings.default.xml", ss_default),
-                   ("MatchSettings.default.xml", ms_default), ("GameSettings.default.xml", gs_default)]:
+for name, text in [("silica-config.sh", config_sh), ("silica-launch.sh", launch_sh),
+                   ("ServerSettings.default.xml", ss_default), ("MatchSettings.default.xml", ms_default),
+                   ("GameSettings.default.xml", gs_default)]:
     assert text.endswith("\n"), name + " must end with a newline (heredoc terminator)"
 
-VERSION = "1.0.0"      # bump for every release: x.y.Z fixes, x.Y.0 new features, X.0.0 breaking changes
-RELEASED = "2026-11-03"  # date of that release (YYYY-MM-DD)
+VERSION = "1.1.0"      # bump for every release: x.y.Z fixes, x.Y.0 new features, X.0.0 breaking changes
+RELEASED = "2026-11-06"  # date of that release (YYYY-MM-DD)
 APP_ID, GAME_APP_ID = "2738040", "1494420"
+MELONLOADER_VERSION = "0.7.3"  # default MelonLoader release (Linux build needs glibc 2.38+)
 EGG_UUID = "6f0d6f43-6a1e-4a5b-9d7c-5c1a2b0e9e54"  # fixed, so Pelican updates the egg on re-import
 
 def embed(template):
     return (template.replace("__SS_DEFAULT__", ss_default).replace("__MS_DEFAULT__", ms_default)
                     .replace("__GS_DEFAULT__", gs_default)
-                    .replace("__CONFIG_SH__", config_sh).replace("__VERSION__", VERSION).replace("__APP_ID__", APP_ID)
+                    .replace("__CONFIG_SH__", config_sh).replace("__LAUNCH_SH__", launch_sh)
+                    .replace("__VERSION__", VERSION).replace("__APP_ID__", APP_ID)
+                    .replace("__MELONLOADER_VERSION__", MELONLOADER_VERSION)
                     .replace("__GAME_APP_ID__", GAME_APP_ID))
 
 ## standalone installer
@@ -61,7 +66,9 @@ if ! grep -qs '<NetworkServerSettings' /mnt/server/Silica/ServerSettings.xml; th
 fi
 cat > /mnt/server/silica-config.sh <<'SILICA_CONFIG_EOF'
 __CONFIG_SH__SILICA_CONFIG_EOF
-chmod +x /mnt/server/silica-config.sh
+cat > /mnt/server/silica-launch.sh <<'SILICA_LAUNCH_EOF'
+__LAUNCH_SH__SILICA_LAUNCH_EOF
+chmod +x /mnt/server/silica-config.sh /mnt/server/silica-launch.sh
 
 ## the game needs ~9.1 GB installed plus download staging
 avail_kb=$(df -Pk /mnt/server | awk 'NR==2 {print $4}')
@@ -100,6 +107,20 @@ grep -h '"buildid"' /mnt/server/steamapps/appmanifest_${SRCDS_APPID}.acf || true
 mkdir -p /mnt/server/.steam/sdk32 /mnt/server/.steam/sdk64
 cp -v linux32/steamclient.so /mnt/server/.steam/sdk32/steamclient.so
 cp -v linux64/steamclient.so /mnt/server/.steam/sdk64/steamclient.so
+
+## MelonLoader for server-side mods: always installed (~60 MB), the MELONLOADER variable decides whether it is loaded,
+## so switching it on only needs a restart. The Linux build needs glibc 2.38+ at runtime (Ubuntu image).
+ML_VERSION=${MELONLOADER_VERSION:-__MELONLOADER_VERSION__}; ML_VERSION=${ML_VERSION#v}
+if [ "$(cat /mnt/server/MelonLoader/.silica-installed-version 2>/dev/null)" = "$ML_VERSION" ]; then
+    echo "MelonLoader $ML_VERSION already installed"
+elif curl -fsSL -o /tmp/ml.zip "https://github.com/LavaGang/MelonLoader/releases/download/v${ML_VERSION}/MelonLoader.Linux.x64.zip"; then
+    unzip -oq /tmp/ml.zip -d /mnt/server && rm -f /tmp/ml.zip
+    mkdir -p /mnt/server/Mods /mnt/server/Plugins /mnt/server/UserData /mnt/server/UserLibs
+    echo "$ML_VERSION" > /mnt/server/MelonLoader/.silica-installed-version
+    echo "MelonLoader $ML_VERSION installed (loaded only when the MelonLoader variable is 1)"
+else
+    echo "WARNING: could not download MelonLoader v${ML_VERSION} - the server still works without mods"
+fi
 
 echo "-----------------------------------------"
 echo "Silica install finished"
@@ -145,6 +166,11 @@ variables = [
         "SRCDS_BETAPASS", "", False, False, "nullable|required_if:environment.SRCDS_BETAID,test|string|max:128"),
     var("Auto Update", "Update the server through SteamCMD on every start (1 = yes, 0 = no).", "AUTO_UPDATE",
         "1", True, True, "required|boolean"),
+    var("MelonLoader", "Load MelonLoader for server-side mods (1 = yes, 0 = no). Mods go into Mods/, their settings into "
+        "UserData/, log: MelonLoader/Latest.log. Needs the Ubuntu image (glibc 2.38+); otherwise the server starts "
+        "without mods. Players need no mods themselves.", "MELONLOADER", "0", True, True, "required|boolean"),
+    var("MelonLoader Version", "MelonLoader release installed by the installer. Reinstall the server after changing it.",
+        "MELONLOADER_VERSION", MELONLOADER_VERSION, True, False, "required|string|regex:/^v?[0-9]+\\.[0-9]+\\.[0-9]+$/"),
     var("SteamCMD App ID", "Silica Dedicated Server app.", "SRCDS_APPID", APP_ID, False, False,
         "required|string|in:" + APP_ID),
     var("Steam App ID", "Game app ID that Steamworks needs at runtime.", "SteamAppId", GAME_APP_ID, False, False,
@@ -163,15 +189,18 @@ egg = {
     "description": "Silica Dedicated Server (Steam app 2738040), native Linux build. Join works over the Steam relay "
                    "network (no port forwarding needed); only the query port is bound. Needs 12-16 GB RAM and ~20 GB "
                    "disk. All game settings are optional variables: empty keeps the value in ~/Silica/*.xml. "
+                   "Optional server-side mods via MelonLoader (variable MelonLoader = 1, Ubuntu image). "
                    f"silica-linux-server v{VERSION} - https://github.com/Jaqquca/silica-linux-server",
     "features": None,
+    # first entry is the default for new servers: Ubuntu 24.04 (glibc 2.39), required for MelonLoader
     "docker_images": {
-        "SteamCMD Debian": "ghcr.io/parkervcp/steamcmd:debian",
-        "SteamCMD Ubuntu": "ghcr.io/parkervcp/steamcmd:ubuntu",
+        "SteamCMD Ubuntu 24.04 (mods supported)": "ghcr.io/parkervcp/steamcmd:ubuntu",
+        "SteamCMD Debian 12 (no mods)": "ghcr.io/parkervcp/steamcmd:debian",
     },
     "file_denylist": [],
-    # silica-config.sh (written by the installer) applies the optional variables to the XML files
-    "startup": "bash silica-config.sh && ./Silica.x86_64 -logFile -",
+    # silica-config.sh applies the optional variables to the XML files, silica-launch.sh starts the game
+    # (with MelonLoader when MELONLOADER=1); both are written by the installer
+    "startup": "bash silica-config.sh && exec bash silica-launch.sh",
     "config": {
         "files": "{}",
         "startup": json.dumps({"done": "Game server connected to Steam successfully"}),

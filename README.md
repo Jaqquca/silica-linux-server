@@ -5,7 +5,7 @@ Run your own [Silica](https://store.steampowered.com/app/1494420/Silica/) dedica
 - **with a game panel:** import the egg into **Pterodactyl** or **Pelican**, or
 - **on a plain Linux machine:** run one installer script, which sets everything up, including a systemd service.
 
-Both use the same settings script, so a server behaves the same either way.
+Both use the same settings script, so a server behaves the same either way. Since v1.1.0 both can also load **server-side mods** with MelonLoader (optional, off by default; see [Server-side mods](#server-side-mods-melonloader)).
 
 ## Status
 
@@ -27,10 +27,11 @@ Both use the same settings script, so a server behaves the same either way.
 | Network | Outbound internet. **No port forwarding needed:** players connect through the Steam relay network. |
 | Ports | Game port (default 27015) and query port (default 27016) on the machine itself |
 
-**Tested with v1.0.0** (Silica Steam build 26334620, November 2026):
+**Tested** (Silica Steam build 26334620, Release 1.0.15, November 2026):
 
-- **Standalone installer:** Ubuntu 24.04 VM with the systemd service (install, start, restart, join ID), and an `ubuntu:24.04` Docker container (no systemd)
-- **Egg:** Pterodactyl panel with Wings, image `ghcr.io/parkervcp/steamcmd:debian`
+- **v1.0.0, standalone installer:** Ubuntu 24.04 VM with the systemd service (install, start, restart, join ID), and an `ubuntu:24.04` Docker container (no systemd)
+- **v1.0.0, egg:** Pterodactyl panel with Wings, image `ghcr.io/parkervcp/steamcmd:debian`
+- **v1.1.0, MelonLoader 0.7.3:** a fresh Ubuntu 24.04 VM (standalone, systemd) and Pterodactyl with the Ubuntu image, each with the data-bomb server mod pack (see the [known limitations](#known-limitations))
 
 ## Option A: standalone installer (any Linux machine)
 
@@ -41,7 +42,7 @@ sudo bash install-silica-server.sh
 
 This does the following:
 
-1. installs the packages SteamCMD needs (`curl`, `ca-certificates`, `tar`, 32-bit `libgcc`)
+1. installs the packages it needs (`curl`, `ca-certificates`, `tar`, `unzip`, 32-bit `libgcc`)
 2. creates a system user `silica` and installs everything into `/opt/silica`
 3. downloads SteamCMD and the game (about 9 GB, which takes a while the first time)
 4. writes the settings file `/opt/silica/silica.env` and the game's default XML files
@@ -71,6 +72,12 @@ bash install-silica-server.sh --dir ~/silica
 ~/silica/start.sh        # keep it running, e.g. inside tmux or screen
 ```
 
+**With MelonLoader for server-side mods** (Ubuntu 24.04+ / Debian 13+; also works on an existing install):
+
+```bash
+sudo bash install-silica-server.sh --melonloader
+```
+
 Run `bash install-silica-server.sh --help` for all options.
 
 ## Option B: Pterodactyl / Pelican egg
@@ -80,6 +87,7 @@ Run `bash install-silica-server.sh --help` for all options.
 2. Create a server from the egg:
     - **two allocations:** the game port (primary) and the query port, usually game port + 1. Set **Query Port** to the second one.
     - **16 GB RAM, 0 swap, ~20 GB disk**
+    - **Docker image:** the default *SteamCMD Ubuntu 24.04* works for everything. *Debian 12* runs the server, but not MelonLoader.
 3. Start it. The first start installs SteamCMD and the game, and takes a few minutes. The panel shows the server as running once the console prints `Game server connected to Steam successfully`.
 
 The node needs at least ~14 GB **free** disk during the install, otherwise SteamCMD fails with `Not enough disk quota`.
@@ -103,6 +111,8 @@ In the egg these are the panel variables. In the standalone install they are the
 | Max FPS | `MAX_FPS` | `60` | Server frame cap (see below) |
 | Branch | `SRCDS_BETAID` / `BRANCH` | `public` | `public`, `beta`, or `test` (private, needs a password) |
 | Auto update | `AUTO_UPDATE` | `1` | Update through SteamCMD on every start |
+| MelonLoader | `MELONLOADER` | `0` | `1` loads MelonLoader for server-side mods (see below) |
+| MelonLoader version | `MELONLOADER_VERSION` | `0.7.3` | MelonLoader release that gets installed |
 | Ports | allocations / `GAME_PORT`, `QUERY_PORT` | `27015` / `27016` | Always applied |
 
 Map, map rotation and max players only change the settings block of the **active** game mode. The other modes keep theirs.
@@ -126,6 +136,45 @@ Even with nobody connected, the server runs its game loop at the frame cap. The 
 
 Bohemia Interactive describes 30 FPS as the lowest cap that doesn't affect player experience.
 
+## Server-side mods (MelonLoader)
+
+Since v1.1.0, both install methods can load [MelonLoader](https://github.com/LavaGang/MelonLoader) (native Linux build) and with it **server-side mods**, such as the [data-bomb mod collection](https://github.com/data-bomb/Silica). **Players don't need anything:** they join with the normal game.
+
+**Requirement:** glibc 2.38 or newer, which the Linux build of MelonLoader needs. That means Ubuntu 24.04+ or Debian 13+; in the panel, the *SteamCMD Ubuntu 24.04* image (the default). On an older system the server still starts, just without mods, and says so in the log.
+
+**Switch it on:**
+
+- **Standalone:** `sudo bash install-silica-server.sh --melonloader`. It works on an existing install, and your settings are kept. Switch it off again with `--no-melonloader`.
+- **Panel:** set the **MelonLoader** variable to `1` and restart. MelonLoader is already installed by the egg's installer. A server created from the v1.0.0 egg needs the [upgrade steps](#upgrading-from-v100) first.
+
+**Add mods:**
+
+- **Folders:** mod DLLs go into `Mods/`, plugins into `Plugins/`, and their settings into `UserData/` in the server folder (`/opt/silica` or the panel's file manager). Then restart.
+- **Log:** `MelonLoader/Latest.log`. MelonLoader's output also appears in the console (`journalctl -u silica -f` or the panel console).
+- **Example, the data-bomb dedicated-server pack** on a standalone install (it leaves out the Windows-only files):
+  ```bash
+  curl -fsSLO https://github.com/data-bomb/Silica/releases/download/v1423/DedicatedServer-v1423-29c72fa.zip
+  sudo -u silica unzip -oq DedicatedServer-v1423-29c72fa.zip -d /opt/silica -x launch.bat rungame.bat Plugins/Si_DiscordStatus.dll
+  sudo systemctl restart silica
+  ```
+  In the panel, upload the zip in the file manager, unpack it, and delete `launch.bat`, `rungame.bat` and `Plugins/Si_DiscordStatus.dll`.
+
+### Known limitations
+
+- **Admin Mod (data-bomb, v2.14.18) declares itself as Windows-only.** Its code says `MelonPlatform(... WINDOWS_X64)`, so MelonLoader refuses to load it on Linux (`'Admin Mod' is incompatible`). The mods that register commands with it then fail with a `NullReferenceException`. In our tests, adding `CompatiblePlatforms.LINUX` to that attribute was enough for all 26 mods of the pack to load without errors. That's a change for the mod's author. Until then, mods that don't depend on Admin Mod work.
+- **Discord Status plugin:** Windows-only (it loads a Windows library). Leave it out on Linux.
+- **Mod Updater plugin:** creates a temp folder with a Windows-style name (`Mods/~temp\`). It's harmless.
+
+### How it works (for manual setups)
+
+MelonLoader's Linux build is a library that's preloaded into the game process:
+
+```bash
+LD_LIBRARY_PATH=/path/to/server:/path/to/server/Silica_Data/Plugins LD_PRELOAD=MelonLoader.Bootstrap.so ./Silica.x86_64 -logFile -
+```
+
+`Silica_Data/Plugins` has to be in `LD_LIBRARY_PATH`. Without it, the game no longer finds `libsteam_api64.so` once MelonLoader is loaded, and it never connects to Steam (`DllNotFoundException: steam_api64`). Both install methods do this in `silica-launch.sh`.
+
 ## Troubleshooting
 
 | Symptom | Cause / fix |
@@ -134,6 +183,9 @@ Bohemia Interactive describes 30 FPS as the lowest cap that doesn't affect playe
 | `Steamworks is not initialized` / `Aborting server startup` | Keep `IP="0"` in ServerSettings.xml; the scripts force it. Check that `.steam/sdk64/steamclient.so` exists (re-run the installer / reinstall). |
 | Killed, exit code 137 / "out of memory" | Give the server more RAM (16 GB) |
 | High CPU with nobody online | Lower `MAX_FPS` (60 or 30) |
+| `GLIBC_2.38' not found` (MelonLoader) | The system is too old for MelonLoader: use Ubuntu 24.04+ / Debian 13+, or in the panel the Ubuntu image |
+| `DllNotFoundException: steam_api64` with MelonLoader | `Silica_Data/Plugins` is missing from `LD_LIBRARY_PATH` (manual setups; the scripts set it) |
+| `'Admin Mod v…' is incompatible` | See [Known limitations](#known-limitations) |
 | Players don't see the server | Wait for `Steam relay network and server certificate available` in the log; join by the ID from `joinid.sh` (or `Game server SteamID` in the log) |
 
 ## Repository layout
@@ -141,8 +193,9 @@ Bohemia Interactive describes 30 FPS as the lowest cap that doesn't affect playe
 | Path | What it is |
 |---|---|
 | `egg-silica-linux.json` | The egg (PTDL_v2; imports into Pterodactyl and Pelican). **Generated.** |
-| `install-silica-server.sh` | The standalone installer. **Generated.** It writes `silica.env`, `start.sh`, `update.sh`, `joinid.sh`, `silica-config.sh` and the default XML templates into the install folder. |
+| `install-silica-server.sh` | The standalone installer. **Generated.** It writes `silica.env`, `start.sh`, `update.sh`, `joinid.sh`, `silica-config.sh`, `silica-launch.sh` and the default XML templates into the install folder. |
 | `src/silica-config.sh` | Applies the settings to the game's XML files before every start; shared by both. |
+| `src/silica-launch.sh` | Starts the game, with MelonLoader when `MELONLOADER=1`; shared by both. |
 | `src/*.default.xml` | Default ServerSettings / MatchSettings / GameSettings templates. |
 | `src/install-silica-server.template.sh` | Source of the standalone installer. |
 | `src/build_release.py` | Builds both generated files from `src/`. |
@@ -173,6 +226,14 @@ How existing servers update:
 
 - **Standalone:** run the new installer once. It refreshes the scripts and keeps `silica.env` and the XML settings.
 - **Panel:** import the new egg (Pterodactyl: *Update Egg*; Pelican: re-import, where the fixed `uuid` makes it an update), then reinstall the server. Game files and settings stay.
+
+### Upgrading from v1.0.0
+
+- **Standalone:** download the new installer and run it once (`sudo bash install-silica-server.sh`, add `--melonloader` for mods). Settings are kept.
+- **Panel:**
+    1. Import the new egg as an update of the existing one (Pterodactyl: *Update Egg*; Pelican: re-import).
+    2. On every existing server, change the startup command to `bash silica-config.sh && exec bash silica-launch.sh` (servers keep their own copy of it) and switch the Docker image to *Ubuntu 24.04* if you want mods.
+    3. Reinstall the server. It keeps the game files and settings, and adds `silica-launch.sh` and MelonLoader.
 
 ## License
 

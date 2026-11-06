@@ -20,6 +20,9 @@
 #   --branch-password PW   password for a private branch (test)
 #   --no-service           don't create a systemd service
 #   --no-start             create the service but don't start it
+#   --melonloader          install MelonLoader for server-side mods (needs glibc 2.38+: Ubuntu 24.04+, Debian 13+)
+#   --no-melonloader       start without MelonLoader again (files stay)
+#   --melonloader-version V   MelonLoader release to install (default: __MELONLOADER_VERSION__)
 #   --version              print the version and exit
 #
 # Requirements: x86_64 Debian 11+ / Ubuntu 20.04+, ~14 GB free disk, 12-16 GB RAM, outbound internet.
@@ -34,6 +37,7 @@ NEED_RAM_KB=12000000
 
 NAME=silica; DIR=""; RUN_USER=""; GAME_PORT=27015; QUERY_PORT=27016
 BRANCH=""; BRANCH_PASSWORD=""; SERVICE=1; START=1
+MELONLOADER=""; ML_VERSION=""   # empty = keep what silica.env says
 
 die()  { echo "ERROR: $*" >&2; exit 1; }
 info() { echo "==> $*"; }
@@ -50,6 +54,9 @@ while [ $# -gt 0 ]; do
         --branch-password) BRANCH_PASSWORD=$2; shift 2 ;;
         --no-service) SERVICE=0; shift ;;
         --no-start) START=0; shift ;;
+        --melonloader) MELONLOADER=1; shift ;;
+        --no-melonloader) MELONLOADER=0; shift ;;
+        --melonloader-version) ML_VERSION=${2#v}; MELONLOADER=${MELONLOADER:-1}; shift 2 ;;
         -h|--help) sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'; exit 0 ;;
         --version) echo "silica-linux-server v$VERSION"; exit 0 ;;
         *) die "unknown option: $1 (see --help)" ;;
@@ -78,11 +85,11 @@ info "silica-linux-server v$VERSION - installing to $DIR ($((free_kb / 1024 / 10
 
 ## packages --------------------------------------------------------------------------------------------
 if [ "$IS_ROOT" -eq 1 ] && command -v apt-get >/dev/null; then
-    info "Installing packages (curl, ca-certificates, tar, 32-bit libgcc for SteamCMD)"
+    info "Installing packages (curl, ca-certificates, tar, unzip, 32-bit libgcc for SteamCMD)"
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
     lib32=lib32gcc-s1; apt-cache show lib32gcc-s1 >/dev/null 2>&1 || lib32=lib32gcc1
-    apt-get install -y -qq curl ca-certificates tar "$lib32" >/dev/null
+    apt-get install -y -qq curl ca-certificates tar unzip "$lib32" >/dev/null
 elif [ "$IS_ROOT" -eq 1 ]; then
     warn "no apt-get: install curl, ca-certificates, tar and 32-bit libgcc yourself if SteamCMD fails"
 else
@@ -134,10 +141,23 @@ BRANCH_PASSWORD=
 AUTO_UPDATE=1
 EOF
 fi
-# command line overrides the branch in an existing silica.env
+# settings added in later versions - appended once to an older silica.env
+if ! grep -q '^MELONLOADER=' silica.env; then
+    cat >> silica.env <<'EOF'
+
+# MelonLoader for server-side mods (1 = load it, 0 = plain server). Mods go into Mods/, their settings into UserData/.
+# Needs glibc 2.38+ (Ubuntu 24.04+, Debian 13+). Change it with: install-silica-server.sh --melonloader / --no-melonloader
+MELONLOADER=0
+MELONLOADER_VERSION=__MELONLOADER_VERSION__
+EOF
+fi
+# command line overrides values in an existing silica.env
 [ -n "$BRANCH" ] && sed -i "s|^BRANCH=.*|BRANCH=$BRANCH|" silica.env
 [ -n "$BRANCH_PASSWORD" ] && sed -i "s|^BRANCH_PASSWORD=.*|BRANCH_PASSWORD=$BRANCH_PASSWORD|" silica.env
+[ -n "$MELONLOADER" ] && sed -i "s|^MELONLOADER=.*|MELONLOADER=$MELONLOADER|" silica.env
+[ -n "$ML_VERSION" ] && sed -i "s|^MELONLOADER_VERSION=.*|MELONLOADER_VERSION=$ML_VERSION|" silica.env
 chmod 600 silica.env
+MELONLOADER=$(sed -n 's/^MELONLOADER=//p' silica.env); ML_VERSION=$(sed -n 's/^MELONLOADER_VERSION=//p' silica.env)
 
 ## templates + config script (always refreshed) --------------------------------------------------------
 mkdir -p Silica
@@ -150,6 +170,8 @@ __GS_DEFAULT__SILICA_GS_EOF
 grep -qs '<NetworkServerSettings' Silica/ServerSettings.xml || cp Silica/ServerSettings.default.xml Silica/ServerSettings.xml
 cat > silica-config.sh <<'SILICA_CONFIG_EOF'
 __CONFIG_SH__SILICA_CONFIG_EOF
+cat > silica-launch.sh <<'SILICA_LAUNCH_EOF'
+__LAUNCH_SH__SILICA_LAUNCH_EOF
 
 cat > update.sh <<'SILICA_UPDATE_EOF'
 #!/usr/bin/env bash
@@ -184,7 +206,7 @@ set -a; . ./silica.env; set +a
 export HOME="$PWD" SILICA_DIR="$PWD" SERVER_PORT="${GAME_PORT:-27015}" SteamAppId=__GAME_APP_ID__ SteamGameId=__GAME_APP_ID__
 if [ "${AUTO_UPDATE:-1}" = "1" ]; then ./update.sh || echo "[start] update failed - starting the installed version"; fi
 bash silica-config.sh || exit 1
-exec ./Silica.x86_64 -logFile -
+exec bash silica-launch.sh
 SILICA_START_EOF
 
 cat > joinid.sh <<'SILICA_JOINID_EOF'
@@ -195,7 +217,7 @@ log=$(ls -1t Silica/Server_*.log 2>/dev/null | head -n 1)
 [ -n "$log" ] || { echo "no server log yet - is the server running?"; exit 1; }
 grep -h 'Game server SteamID' "$log" | tail -n 1 | sed 's/.*SteamID://'
 SILICA_JOINID_EOF
-chmod +x update.sh start.sh joinid.sh silica-config.sh
+chmod +x update.sh start.sh joinid.sh silica-config.sh silica-launch.sh
 
 ## SteamCMD + game -------------------------------------------------------------------------------------
 if [ ! -x steamcmd/steamcmd.sh ]; then
@@ -206,6 +228,27 @@ fi
 [ "$IS_ROOT" -eq 1 ] && chown -R "$RUN_USER": "$DIR"
 info "Installing / updating the game (about 9 GB on the first run, this takes a while)"
 as_user ./update.sh --validate
+
+## MelonLoader (optional) -------------------------------------------------------------------------------
+if [ "$MELONLOADER" = "1" ]; then
+    glibc=$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')
+    if [ "$(printf '%s\n' 2.38 "${glibc:-0}" | sort -V | head -n 1)" != "2.38" ]; then
+        warn "MelonLoader needs glibc 2.38+, this system has ${glibc:-unknown} (use Ubuntu 24.04+ / Debian 13+) - setting MELONLOADER=0"
+        sed -i "s|^MELONLOADER=.*|MELONLOADER=0|" silica.env; MELONLOADER=0
+    elif [ "$(cat MelonLoader/.silica-installed-version 2>/dev/null)" = "$ML_VERSION" ]; then
+        info "MelonLoader $ML_VERSION already installed"
+    else
+        command -v unzip >/dev/null || die "'unzip' is missing - install it or run with sudo"
+        info "Installing MelonLoader $ML_VERSION (glibc $glibc)"
+        tmp=$(mktemp -d)
+        curl -fsSL -o "$tmp/ml.zip" "https://github.com/LavaGang/MelonLoader/releases/download/v$ML_VERSION/MelonLoader.Linux.x64.zip" \
+            || die "could not download MelonLoader v$ML_VERSION"
+        unzip -oq "$tmp/ml.zip" -d "$DIR" && rm -rf "$tmp"
+        mkdir -p Mods Plugins UserData UserLibs
+        echo "$ML_VERSION" > MelonLoader/.silica-installed-version
+        [ "$IS_ROOT" -eq 1 ] && chown -R "$RUN_USER": "$DIR"
+    fi
+fi
 
 ## systemd service -------------------------------------------------------------------------------------
 if [ "$SERVICE" -eq 1 ] && command -v systemctl >/dev/null && [ -d /run/systemd/system ]; then
@@ -258,3 +301,8 @@ cat <<EOF
   Join ID:    $DIR/joinid.sh   (after the log shows "Game server connected to Steam successfully")
   Update:     restart the server (AUTO_UPDATE=1) or run $DIR/update.sh
 EOF
+if [ "$MELONLOADER" = "1" ]; then cat <<EOF
+  MelonLoader: v$ML_VERSION - put mods into $DIR/Mods, their settings live in $DIR/UserData,
+              log: $DIR/MelonLoader/Latest.log
+EOF
+fi
